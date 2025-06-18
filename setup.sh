@@ -31,16 +31,14 @@ echo "L1 network found."
 
 
 
-mkdir -p "$L2_CONFIG_DIR"
 
 echo "Deploying L2 contracts to L1..."
 sleep 30
 docker run --rm \
   --network "$DOCKER_NETWORK" \
-  -v "$(pwd)/$CONFIG_DIR:/app/packages/contracts-bedrock/deploy-config" \
-  -v "$(pwd)/$L2_CONFIG_DIR:/app/packages/contracts-bedrock/deployments" \
+  -v "$(pwd)/$CONFIG_DIR:/app/packages/contracts-bedrock/deployments" \
   -w /app/packages/contracts-bedrock \
   "$OP_STACK_IMAGE" \
-  bash -c "yes | DEPLOYMENT_OUTFILE=deployments/artifact.json DEPLOY_CONFIG_PATH=deploy-config/devnetL1.json forge script -vvv scripts/deploy/Deploy.s.sol:Deploy \
+  bash -c "yes | DEPLOYMENT_OUTFILE=deployments/artifact.json DEPLOY_CONFIG_PATH=deployments/devnetL1.json forge script -vvv scripts/deploy/Deploy.s.sol:Deploy \
       --rpc-url $L1_RPC_URL_IN_DOCKER \
       --broadcast --private-key $DEPLOYER_PRIVATE_KEY --non-interactive"
