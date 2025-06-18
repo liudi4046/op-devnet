@@ -1,0 +1,123 @@
+version: "3.9"
+networks:
+  op-devnet:
+    name: ${DOCKER_NETWORK}
+    external: true
+    
+services:
+  # Runs the go-ethereum execution client with the specified, unlocked account and necessary
+  # APIs to allow for proof-of-stake consensus via Prysm.
+  op-geth:
+    image: "${DOCKER_HUB_USERNAME}/${OP_GETH_IMAGE_TAG}"
+    container_name: op-geth
+    entrypoint: geth
+    networks:
+      - op-devnet
+    volumes:
+      - ./op-geth-datadir:/datadir
+      - ./jwt/jwt.txt:/jwt.txt
+    ports:
+      # RPC and WS ports
+      - "7547:7547"
+      - "7546:7546"
+      # Engine API port
+      - "8552:8552"
+      # P2P discovery ports
+      - "30303:30303"
+      - "30303:30303/udp"
+    command:
+      - --datadir
+      - /datadir
+      - --http
+      - --http.corsdomain=*
+      - --http.vhosts=*
+      - --http.port=7547
+      - --http.addr=0.0.0.0
+      - --http.api=web3,debug,eth,txpool,net,engine
+      - --ws
+      - --ws.addr=0.0.0.0
+      - --ws.port=7546
+      - --ws.origins=*
+      - --ws.api=debug,eth,txpool,net,engine
+      - --syncmode=full
+      - --gcmode=archive
+      - --nodiscover
+      - --maxpeers=0
+      - --networkid=901
+      - --authrpc.vhosts=*
+      - --authrpc.addr=0.0.0.0
+      - --authrpc.port=8552
+      - --authrpc.jwtsecret=/jwt.txt
+      - --rollup.disabletxpoolgossip=true
+
+  op-node:
+    image: "${DOCKER_HUB_USERNAME}/${OP_STACK_IMAGE_TAG}"
+    container_name: op-node
+    networks:
+      - op-devnet
+    volumes:
+      - ./config/rollup.json:/rollup.json
+      - ./jwt/jwt.txt:/jwt.txt
+    ports:
+      - "9545:9545" # op-node RPC
+      - "7070:7070" # op-node P2P
+    command:
+      - /app/op-node/bin/op-node
+      - --l2=http://op-geth:8552
+      - --l2.jwt-secret=/jwt.txt
+      - --sequencer.enabled
+      - --sequencer.l1-confs=5
+      - --verifier.l1-confs=4
+      - --rollup.config=/rollup.json
+      - --rpc.addr=0.0.0.0
+      - --p2p.disable
+      - --rpc.enable-admin
+      - --p2p.sequencer.key=${SEQUENCER_P2P_KEY}
+      - --l1=${L1_RPC_URL_IN_DOCKER}
+      - --l1.beacon=${L1_BEACON_URL_IN_DOCKER}
+      - --l1.rpckind=standard
+    depends_on:
+      - op-geth
+
+  op-batcher:
+    image: "${DOCKER_HUB_USERNAME}/${OP_STACK_IMAGE_TAG}"
+    container_name: op-batcher
+    networks:
+      - op-devnet
+    command:
+      - /app/op-batcher/bin/op-batcher
+      - --l2-eth-rpc=http://op-geth:7547
+      - --rollup-rpc=http://op-node:9545
+      - --poll-interval=1s
+      - --sub-safety-margin=6
+      - --num-confirmations=1
+      - --safe-abort-nonce-too-low-count=3
+      - --resubmission-timeout=30s
+      - --rpc.addr=0.0.0.0
+      - --rpc.port=8548
+      - --rpc.enable-admin
+      - --max-channel-duration=25
+      - --l1-eth-rpc=${L1_RPC_URL_IN_DOCKER}
+      - --private-key=${OP_BATCHER_PRIVATE_KEY}
+    depends_on:
+      - op-node
+
+  # op-proposer - Submits L2 state commitments to L1
+  op-proposer:
+    image: "${DOCKER_HUB_USERNAME}/${OP_STACK_IMAGE_TAG}"
+    container_name: op-proposer
+    environment:
+      # We pass the L2OO address via environment variable from setup.sh
+      - L2OO_ADDRESS=${L2OO_ADDRESS}
+    networks:
+      - op-devnet
+    command:
+      - /app/op-proposer/bin/op-proposer
+      - --poll-interval=12s
+      - --rpc.port=8560
+      - --rollup-rpc=http://op-node:9545
+      - --l2oo-address=${L2OO_ADDRESS}
+      - --private-key=${OP_PROPOSER_PRIVATE_KEY}
+      - --l1-eth-rpc=${L1_RPC_URL_IN_DOCKER}
+    depends_on:
+      - op-batcher
