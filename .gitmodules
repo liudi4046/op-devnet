@@ -1,0 +1,3 @@
+[submodule "eth-pos-devnet"]
+	path = eth-pos-devnet
+	url = ./eth-pos-devnet
