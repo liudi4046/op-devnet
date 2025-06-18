@@ -1,7 +1,8 @@
 #!/bin/bash
 set -e
-source .env
 cp .env.example .env
+source .env
+
 # --- Pull Docker Images ---
 echo "--- Pulling required Docker images"
 # Pull the image for op-geth
