@@ -3,6 +3,8 @@ set -e
 cp .env.example .env
 source .env
 
+git submodule update --init
+
 # --- Pull Docker Images ---
 echo "--- Pulling required Docker images"
 # Pull the image for op-geth
