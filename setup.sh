@@ -1,15 +1,14 @@
 #!/bin/bash
 set -e
 source .env
-
-# # --- Pull Docker Images ---
-# echo "--- Pulling required Docker images"
-# # Pull the image for op-geth
-# docker pull "${DOCKER_HUB_USERNAME}/${OP_GETH_IMAGE_TAG}"
-# # Pull the image used for op-node, op-batcher, op-proposer, and contract deployment
-# docker pull "${DOCKER_HUB_USERNAME}/${OP_STACK_IMAGE_TAG}"
-# echo "Docker images pulled successfully."
-
+cp .env.example .env
+# --- Pull Docker Images ---
+echo "--- Pulling required Docker images"
+# Pull the image for op-geth
+docker pull "${DOCKER_HUB_USERNAME}/${OP_GETH_IMAGE_TAG}"
+# Pull the image used for op-node, op-batcher, op-proposer, and contract deployment
+docker pull "${DOCKER_HUB_USERNAME}/${OP_STACK_IMAGE_TAG}"
+echo "Docker images pulled successfully."
 
 # --- L1 Setup ---
 echo "Starting L1..."
